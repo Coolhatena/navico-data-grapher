@@ -11,8 +11,8 @@ import os
 # 2.- Processed data should be generated using the raw data on the readed file - Done
 # 3.- There should be controls to modify the value of the processing parameters
 
-def incoherence_correction(data_angle, prev_data_angle):
-	MAX_REAL_ANGLE_DIFFERENCE = 35	# The maximum possible angles difference between frames 
+def incoherence_correction(data_angle, prev_data_angle, MAX_REAL_ANGLE_DIFFERENCE = 35):
+	# MAX_REAL_ANGLE_DIFFERENCE = 35	# The maximum possible angles difference between frames 
 	CORRECTION_CONSTANT = MAX_REAL_ANGLE_DIFFERENCE * MAX_REAL_ANGLE_DIFFERENCE # A constant to calculate the correction value used to correct irregular differences 
 	discrepancy = 0
 
@@ -25,8 +25,7 @@ def incoherence_correction(data_angle, prev_data_angle):
 	return data_angle, discrepancy
 
 
-def nonlinear_correction(data_angle, prev_data_angle, frame_index, frames_data_filtered):
-	ASSUMED_MIN_FRAME_MOVEMENT = 5	# The minimum angle movement between frames 
+def nonlinear_correction(data_angle, prev_data_angle, frame_index, frames_data_filtered, ASSUMED_MIN_FRAME_MOVEMENT = 5):	# The minimum angle movement between frames 
 	discrepancy = 0
 
 	data_angle = float(data_angle)
@@ -68,7 +67,7 @@ def frame_data_to_string(frames_data_filtered):
 	
 	return frames_data_filtered_as_string
 
-def data_postprocess(frames_data_list):
+def data_postprocess(frames_data_list, config):
 	discrepancies_counter = 0 # Counts the times some data had to be corrected  
 	frames_data_filtered = [] # New list for filtered data
 
@@ -91,12 +90,12 @@ def data_postprocess(frames_data_list):
 			prev_data_angle2 = prev_data[1]
 
 			# NON-LINEAR DATA CORRECTION
-			data_angle1, discrepancy1 = nonlinear_correction(data_angle1, prev_data_angle1, i, frames_data_filtered)
-			data_angle2, discrepancy2 = nonlinear_correction(data_angle2, prev_data_angle2, i, frames_data_filtered)
+			data_angle1, discrepancy1 = nonlinear_correction(data_angle1, prev_data_angle1, i, frames_data_filtered, config["assumed_min_frame_movement"])
+			data_angle2, discrepancy2 = nonlinear_correction(data_angle2, prev_data_angle2, i, frames_data_filtered, config["assumed_min_frame_movement"])
 
 			# INCOHERENT INCREMENT CORRECTION
-			data_angle1, discrepancy3 = incoherence_correction(data_angle1, prev_data_angle1)
-			data_angle2, discrepancy4 = incoherence_correction(data_angle2, prev_data_angle2)
+			data_angle1, discrepancy3 = incoherence_correction(data_angle1, prev_data_angle1, config["max_real_angle_difference"])
+			data_angle2, discrepancy4 = incoherence_correction(data_angle2, prev_data_angle2, config["max_real_angle_difference"])
 			
 			discrepancies_counter += (discrepancy1 + discrepancy2 + discrepancy3 + discrepancy4)
 
@@ -116,11 +115,11 @@ def data_postprocess(frames_data_list):
 # analizePostprocessedData(filtered_frames_data)
 # filtered_frames_data_string = frame_data_to_string(filtered_frames_data)
 
-def analizePostprocessedData(filtered_frames_data):
+def analizePostprocessedData(filtered_frames_data, config):
 	# global valid_threshold, max_angle_difference, max_desync_time, global_test_result, global_test_error_status
 	# Purge system from previuous angle analysis
-	global_test_error_status = ""
-	global_test_result = True
+	test_error_status = ""
+	is_test_result = True
 
 	filtered_desync_start = False
 	filtered_desync_start_time = 0
@@ -131,16 +130,16 @@ def analizePostprocessedData(filtered_frames_data):
 
 	for frame in filtered_frames_data:
 		filtered_angles_diference = frame[3]
-		TIMESTAMP = frame[4]
+		TIMESTAMP = float(frame[4])
 
-		if filtered_angles_diference > max_angle_difference:
-			print(f"MAX ANGLE DIF: {angle_diference}")
-			global_test_result = False
+		if filtered_angles_diference > config["max_angle_difference"]:
+			# print(f"MAX ANGLE DIF: {angle_diference}")
+			is_test_result = False
 			if not error_max_angle_filtered:
-				global_test_error_status += "$max_angle_diff"
+				test_error_status += "$max_angle_diff"
 			error_max_angle_filtered = True
 
-		if filtered_angles_diference > valid_threshold:
+		if filtered_angles_diference > config["valid_threshold"]:
 			if not filtered_desync_start:
 				filtered_desync_start_time = TIMESTAMP
 			
@@ -152,16 +151,17 @@ def analizePostprocessedData(filtered_frames_data):
 		if filtered_desync_start:
 			filtered_desync_time = TIMESTAMP - filtered_desync_start_time
 			# desync_time = round(frame_loop_endtime, 3) - round(desync_start, 3)
-			if filtered_desync_time > max_desync_time:
-				global_test_result = False
+			if filtered_desync_time > config["max_desync_time"]:
+				is_test_result = False
 				if not error_max_time_filtered:
-					global_test_error_status += "$max_desync_time"
+					test_error_status += "$max_desync_time"
 				error_max_time_filtered = True
+	
+	return is_test_result, test_error_status
 
 
 
 def plot(data_array, title, graph, isString = True):
-	print(data_array)
 	eje_x = np.array([float(row[4].strip()) for row in data_array]) # Get Time
 	angulo_1 = np.array([(float(row[0].strip()) if isString else row[0]) for row in data_array])  # Get Motor angle
 	angulo_2 = np.array([(float(row[1].strip()) if isString else row[1]) for row in data_array])  # Get arrow angle
@@ -177,6 +177,18 @@ def plot(data_array, title, graph, isString = True):
 
 
 def update_graphs():
+	print("Text field values: ")
+	input_values = get_text_field_values()
+
+	config = {
+		"valid_threshold": input_values[0],
+		"max_angle_difference": input_values[1],
+		"max_desync_time": input_values[2],
+		"assumed_min_frame_movement": input_values[3],
+		"max_real_angle_difference": input_values[4],
+
+	}
+
 	file_name = file_selector.get()
 	file_path = os.path.join(test_data_path, file_name)
 	with open(file_path) as csvfile:
@@ -206,22 +218,9 @@ def update_graphs():
 	raw_graph.clear()
 	processed_graph.clear()
 
-
-	# print('raw DATA:')
-	# for data in raw_data:
-	# 	print(data)
-
-	# Calculate processed data:
-	calculated_processed_data = data_postprocess(raw_data)
-	# print('GENERATED PROCESSED DATA:')
-	# for data in calculated_processed_data:
-	# 	print(data)
-
-	# print('\n')
-	# print('PROCESSED DATA from file:')
-	# for data in processed_data:
-	# 	print(data)
-
+	calculated_processed_data = data_postprocess(raw_data, config)
+	is_test_passed, test_status = analizePostprocessedData(calculated_processed_data, config)
+	update_test_status(is_test_passed, test_status)
 
 
 	# Graph again with new data
@@ -230,6 +229,11 @@ def update_graphs():
 
 	# Redraw graphs
 	canvas.draw()
+
+def get_text_field_values():
+	values = [float(field.get()) for field in text_fields]
+	print(f"Entered values: {values}")
+	return values
 
 
 def close_program():
@@ -266,31 +270,22 @@ file_selector.pack(side=tk.LEFT, padx=5)
 btn_update = ttk.Button(root, text='Actualizar Gráfica', command=update_graphs)
 btn_update.pack(side=tk.LEFT, padx=10, pady=10)
 
-
-
-
-
 # Create a frame for the text fields
 frame_text_fields = tk.Frame(root)
 frame_text_fields.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
 
-# Labels and Entry widgets for 5 numbers
+# Labels and Entry widgets
 text_field_labels = []
 text_fields = []
-
 tags = [
-	# valid_threshold = 35
-	# max_angle_difference = 70
-	# max_desync_time = 5
-	# test_delay = 0
 	{"name": "Diferencia minima", "default": 35}, # Valid threshold
 	{"name": "Diferencia maxima", "default": 70}, # max angle difference
 	{"name": "Tiempo maximo de desinc.", "default": 5}, # max desync time
 	{"name": "Movimiento minimo", "default": 5}, # ASSUMED_MIN_FRAME_MOVEMENT
 	{"name": "Maxima diferencia real", "default": 35}, # MAX_REAL_ANGLE_DIFFERENCE
 ]
+
 for i in range(5):
-	print(i)
 	label = ttk.Label(frame_text_fields, text=f"{tags[i]["name"]}:")
 	label.pack(side=tk.LEFT, padx=5)
 	text_field_labels.append(label)
@@ -300,17 +295,24 @@ for i in range(5):
 	entry.pack(side=tk.LEFT, padx=5)
 	text_fields.append(entry)
 
-# Example: Accessing the entered values
-def get_text_field_values():
-	values = [field.get() for field in text_fields]
-	print(f"Entered values: {values}")
-	return values
 
+# Create a StringVar for the label text
+status_text = tk.StringVar()
+status_text.set("Ready")  # Set an initial value
 
+# Create the Label and bind it to the StringVar
+status_label = ttk.Label(root, textvariable=status_text)
+status_label.pack(side=tk.BOTTOM, pady=10)
 
+# Function to update the label conditionally
+def update_test_status(is_test_passed, test_status: str):
+	if is_test_passed:
+		status_text.set("Con estos datos la prueba: pasa")
+	else:
+		status_text.set(f"Con estos datos la prueba: falla con el codigo de error: {test_status}")
+	
 
-
-
+# Allow easy program closing
 root.protocol("WM_DELETE_WINDOW", close_program)
 
 # Executed once before the app runs to ensure the graphs have data on them from start
