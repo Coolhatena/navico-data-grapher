@@ -9,7 +9,7 @@ import os
 # TODO
 # 1.- Be able to change between test files with a dropdown - Done
 # 2.- Processed data should be generated using the raw data on the readed file - Done
-# 3.- There should be controls to modify the value of the processing parameters
+# 3.- There should be controls to modify the value of the processing parameters - Done
 
 def incoherence_correction(data_angle, prev_data_angle, MAX_REAL_ANGLE_DIFFERENCE = 35):
 	# MAX_REAL_ANGLE_DIFFERENCE = 35	# The maximum possible angles difference between frames 
@@ -30,8 +30,6 @@ def nonlinear_correction(data_angle, prev_data_angle, frame_index, frames_data_f
 
 	data_angle = float(data_angle)
 	prev_data_angle = float(prev_data_angle)
-	# print(f'DATA ANGLE: {type(data_angle)} - {data_angle}')
-	# print(f'PREV DATA ANGLE: {type(prev_data_angle)} - {prev_data_angle}')
 	if data_angle < prev_data_angle: # If theres non-linear data...
 		# Make it make sense:
 		is_normal_detection_issue = False # If its not a special case, do the normal fix
@@ -58,11 +56,9 @@ def nonlinear_correction(data_angle, prev_data_angle, frame_index, frames_data_f
 
 
 def frame_data_to_string(frames_data_filtered):
-	print("\nDEBUG FILTER RESULT:")
 	frames_data_filtered_as_string = ""
 	for data in frames_data_filtered:
 		# Turn data into a string
-		# print(data)
 		frames_data_filtered_as_string += f"{data[0]}, {data[1]}, {data[2]}, {data[3]}, {data[4]}\n"
 	
 	return frames_data_filtered_as_string
@@ -71,14 +67,11 @@ def data_postprocess(frames_data_list, config):
 	discrepancies_counter = 0 # Counts the times some data had to be corrected  
 	frames_data_filtered = [] # New list for filtered data
 
-	# print("DEBUG TEST DATA FILTERING")
 	for i in range(0, len(frames_data_list)):
 		data = frames_data_list[i] # The actual frame
 		data_angle1 = data[0] # Motor angle
 		data_angle2 = data[1] # Arrow angle
 		TIMESTAMP = data[4]
-
-		#print(data) # Debug: Show raw data of every frame
 
 		if i == 0: # If its the first frame...
 			# Make the first frame always be on angle 0
@@ -111,12 +104,8 @@ def data_postprocess(frames_data_list, config):
 	
 	return frames_data_filtered
 
-# filtered_frames_data = data_postprocess(frames_data_list)
-# analizePostprocessedData(filtered_frames_data)
-# filtered_frames_data_string = frame_data_to_string(filtered_frames_data)
 
 def analizePostprocessedData(filtered_frames_data, config):
-	# global valid_threshold, max_angle_difference, max_desync_time, global_test_result, global_test_error_status
 	# Purge system from previuous angle analysis
 	test_error_status = ""
 	is_test_result = True
@@ -133,7 +122,6 @@ def analizePostprocessedData(filtered_frames_data, config):
 		TIMESTAMP = float(frame[4])
 
 		if filtered_angles_diference > config["max_angle_difference"]:
-			# print(f"MAX ANGLE DIF: {angle_diference}")
 			is_test_result = False
 			if not error_max_angle_filtered:
 				test_error_status += "$max_angle_diff"
@@ -160,7 +148,6 @@ def analizePostprocessedData(filtered_frames_data, config):
 	return is_test_result, test_error_status
 
 
-
 def plot(data_array, title, graph, isString = True):
 	eje_x = np.array([float(row[4].strip()) for row in data_array]) # Get Time
 	angulo_1 = np.array([(float(row[0].strip()) if isString else row[0]) for row in data_array])  # Get Motor angle
@@ -177,7 +164,6 @@ def plot(data_array, title, graph, isString = True):
 
 
 def update_graphs():
-	print("Text field values: ")
 	input_values = get_text_field_values()
 
 	config = {
@@ -230,9 +216,9 @@ def update_graphs():
 	# Redraw graphs
 	canvas.draw()
 
+
 def get_text_field_values():
 	values = [float(field.get()) for field in text_fields]
-	print(f"Entered values: {values}")
 	return values
 
 
