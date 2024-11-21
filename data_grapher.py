@@ -7,7 +7,7 @@ import csv
 import os
 
 # TODO
-# 1.- Be able to change between test files with a dropdown
+# 1.- Be able to change between test files with a dropdown - Done
 # 2.- Processed data should be generated using the raw data on the readed file
 # 3.- There should be controls to modify the value of the processing parameters
 
@@ -27,7 +27,7 @@ def plot(data_array, title, graph):
 
 
 def update_graphs():
-	file_name = test_data_files_list[0]
+	file_name = file_selector.get()
 	file_path = os.path.join(test_data_path, file_name)
 	with open(file_path) as csvfile:
 		test_file_data_csvobj = csv.reader(csvfile)
@@ -83,6 +83,18 @@ canvas_widget = canvas.get_tk_widget()
 canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
 # Controls
+frame_controls = tk.Frame(root)
+frame_controls.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
+
+
+# Dropdown for selecting files
+file_selector_label = ttk.Label(frame_controls, text="Select File:")
+file_selector_label.pack(side=tk.LEFT, padx=5)
+file_selector = ttk.Combobox(frame_controls, values=test_data_files_list, state="readonly")
+file_selector.set(test_data_files_list[0])  # Set default value
+file_selector.pack(side=tk.LEFT, padx=5)
+
+# Button to update the graphs
 btn_update = ttk.Button(root, text='Actualizar Gráfica', command=update_graphs)
 btn_update.pack(side=tk.LEFT, padx=10, pady=10)
 
