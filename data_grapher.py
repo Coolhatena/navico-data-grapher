@@ -165,6 +165,7 @@ def plot(data_array, title, graph, isString = True):
 
 def update_graphs():
 	input_values = get_text_field_values()
+	reset_text_field_values()
 
 	config = {
 		"valid_threshold": input_values[0],
@@ -220,6 +221,11 @@ def update_graphs():
 def get_text_field_values():
 	values = [float(field.get()) for field in text_fields]
 	return values
+
+def reset_text_field_values():
+	for i in range(5):
+		text_fields[i].delete(0, tk.END)
+		text_fields[i].insert(0, tags[i]['default'])
 
 
 def close_program():
