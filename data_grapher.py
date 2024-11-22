@@ -211,8 +211,8 @@ def update_graphs():
 
 
 	# Graph again with new data
-	plot(raw_data, 'Raw data', raw_graph)
-	plot(calculated_processed_data, 'Processed data', processed_graph, False)
+	plot(raw_data, 'Datos en crudo', raw_graph)
+	plot(calculated_processed_data, 'Datos postprocesados', processed_graph, False)
 
 	# Redraw graphs
 	canvas.draw()
@@ -254,7 +254,7 @@ frame_controls.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
 # Dropdown for selecting files
 file_selector_label = ttk.Label(frame_controls, text="Archivo:")
 file_selector_label.pack(side=tk.LEFT, padx=5)
-file_selector = ttk.Combobox(frame_controls, values=test_data_files_list, state="readonly")
+file_selector = ttk.Combobox(frame_controls, values=test_data_files_list, state="readonly", width=50)
 file_selector.set(test_data_files_list[0])  # Set default value
 file_selector.pack(side=tk.LEFT, padx=5)
 
@@ -299,9 +299,9 @@ status_label.pack(side=tk.BOTTOM, pady=10)
 # Function to update the label conditionally
 def update_test_status(is_test_passed, test_status: str):
 	if is_test_passed:
-		status_text.set("Con estos datos la prueba: pasa")
+		status_text.set("Con esta configuración la prueba: Pasa")
 	else:
-		status_text.set(f"Con estos datos la prueba: falla con el codigo de error: {test_status}")
+		status_text.set(f"Con esta configuración la prueba: Falla con el codigo de error: {test_status}")
 	
 
 # Allow easy program closing
