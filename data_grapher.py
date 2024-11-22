@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import tkinter as tk
 from tkinter import ttk
+from tkinter import simpledialog
 import numpy as np
 import csv
 import os
@@ -10,6 +11,47 @@ import os
 # 1.- Be able to change between test files with a dropdown - Done
 # 2.- Processed data should be generated using the raw data on the readed file - Done
 # 3.- There should be controls to modify the value of the processing parameters - Done
+
+class CustomInputDialog(tk.Toplevel):
+    def __init__(self, parent, title, prompt, default_value=""):
+        super().__init__(parent)
+        self.result = None
+        self.title(title)
+        
+        # Label
+        tk.Label(self, text=prompt).pack(pady=10)
+        
+        # Large Input Field
+        self.entry = tk.Entry(self, width=50)
+        self.entry.insert(0, default_value)
+        self.entry.pack(pady=10, padx=10)
+        
+        # Buttons
+        button_frame = tk.Frame(self)
+        button_frame.pack(pady=10)
+        
+        tk.Button(button_frame, text="OK", command=self.ok).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Cancel", command=self.cancel).pack(side=tk.LEFT, padx=5)
+        
+        # Center the dialog
+        self.geometry("+{}+{}".format(
+            parent.winfo_rootx() + 50,
+            parent.winfo_rooty() + 50
+        ))
+        
+        self.transient(parent)  # Make the dialog modal
+        self.grab_set()         # Block interaction with parent
+        self.entry.focus_set()  # Set focus to the input field
+        self.wait_window()      # Wait until the dialog is closed
+
+    def ok(self):
+        self.result = self.entry.get()
+        self.destroy()
+
+    def cancel(self):
+        self.result = None
+        self.destroy()
+
 
 def incoherence_correction(data_angle, prev_data_angle, MAX_REAL_ANGLE_DIFFERENCE = 35):
 	# MAX_REAL_ANGLE_DIFFERENCE = 35	# The maximum possible angles difference between frames 
@@ -62,6 +104,7 @@ def frame_data_to_string(frames_data_filtered):
 		frames_data_filtered_as_string += f"{data[0]}, {data[1]}, {data[2]}, {data[3]}, {data[4]}\n"
 	
 	return frames_data_filtered_as_string
+
 
 def data_postprocess(frames_data_list, config):
 	discrepancies_counter = 0 # Counts the times some data had to be corrected  
@@ -164,8 +207,8 @@ def plot(data_array, title, graph, isString = True):
 
 
 def update_graphs():
+	global last_file_name, current_is_test_passed, current_test_status, current_raw_data, current_processed_data
 	input_values = get_text_field_values()
-	reset_text_field_values()
 
 	config = {
 		"valid_threshold": input_values[0],
@@ -177,6 +220,9 @@ def update_graphs():
 	}
 
 	file_name = file_selector.get()
+	if (file_name != last_file_name):
+		reset_text_field_values()
+	last_file_name = file_name
 	file_path = os.path.join(test_data_path, file_name)
 	with open(file_path) as csvfile:
 		test_file_data_csvobj = csv.reader(csvfile)
@@ -185,6 +231,8 @@ def update_graphs():
 		# Extract needed data		
 		raw_data = []
 		processed_data = []
+
+		# Get the data only
 		test_file_processed_data_list = test_file_data_list[1:-1]
 		
 		iter = 0
@@ -209,6 +257,10 @@ def update_graphs():
 	is_test_passed, test_status = analizePostprocessedData(calculated_processed_data, config)
 	update_test_status(is_test_passed, test_status)
 
+	# Save the current status for further use
+	current_is_test_passed = is_test_passed
+	current_test_status = test_status
+
 
 	# Graph again with new data
 	plot(raw_data, 'Datos en crudo', raw_graph)
@@ -216,6 +268,44 @@ def update_graphs():
 
 	# Redraw graphs
 	canvas.draw()
+
+	# Save the current data for further use
+	current_raw_data = raw_data
+	current_processed_data = processed_data
+
+
+# Function to prompt the user for a string
+def prompt_file_title(parent):
+    dialog = CustomInputDialog(parent, "Guardar archivo", "Nombre del archivo:", default_value=file_selector.get())
+    if dialog.result is not None:
+        return True, dialog.result
+    else:
+        return False, dialog.result
+
+def generate_data_file():
+	global last_file_name, current_is_test_passed, current_test_status, current_raw_data, current_processed_data
+
+	is_file_name_received, new_file_name = prompt_file_title(root)
+	if is_file_name_received:
+		print(f'File name: {new_file_name}')
+		
+		raw_data_string = frame_data_to_string(current_raw_data)
+		processed_data_string = frame_data_to_string(current_processed_data)
+		row_number = raw_data_string.count('\n') + processed_data_string.count('\n')
+		file_head = f'result, {'PASS' if current_is_test_passed else 'FAIL'}, failure_motive, {current_test_status}, cols, 5, rows, {row_number}\n'
+		file_tail = ',EOF\n'
+
+		file_content = file_head + raw_data_string + '\n' + processed_data_string + file_tail
+		print('File content: \n' + file_content)
+		with open(new_file_name, "w") as file:
+			file.write(file_content)
+
+
+def update_test_status(is_test_passed, test_status: str):
+	if is_test_passed:
+		status_text.set("Con esta configuración la prueba: Pasa")
+	else:
+		status_text.set(f"Con esta configuración la prueba: Falla con el codigo de error: {test_status}")
 
 
 def get_text_field_values():
@@ -232,6 +322,12 @@ def close_program():
 	root.quit()
 	root.destroy()
 
+global last_file_name, current_is_test_passed, current_test_status, current_raw_data, current_processed_data
+last_file_name = ""
+current_is_test_passed = True
+current_test_status = ""
+current_raw_data = []
+current_processed_data = []
 
 test_data_path = './Datos'
 test_data_files_list = [file for file in os.listdir(test_data_path) if os.path.isfile(os.path.join(test_data_path, file))]
@@ -261,6 +357,10 @@ file_selector.pack(side=tk.LEFT, padx=5)
 # Button to update the graphs
 btn_update = ttk.Button(root, text='Actualizar Gráfica', command=update_graphs)
 btn_update.pack(side=tk.LEFT, padx=10, pady=10)
+
+# Button to save file
+btn_save = ttk.Button(root, text="Guardar en archivo", command=generate_data_file)
+btn_save.pack(side=tk.LEFT, padx=10, pady=10)
 
 # Create a frame for the text fields
 frame_text_fields = tk.Frame(root)
@@ -294,15 +394,7 @@ status_text.set("Ready")  # Set an initial value
 
 # Create the Label and bind it to the StringVar
 status_label = ttk.Label(root, textvariable=status_text)
-status_label.pack(side=tk.BOTTOM, pady=10)
-
-# Function to update the label conditionally
-def update_test_status(is_test_passed, test_status: str):
-	if is_test_passed:
-		status_text.set("Con esta configuración la prueba: Pasa")
-	else:
-		status_text.set(f"Con esta configuración la prueba: Falla con el codigo de error: {test_status}")
-	
+status_label.pack(side=tk.BOTTOM, pady=10)	
 
 # Allow easy program closing
 root.protocol("WM_DELETE_WINDOW", close_program)
