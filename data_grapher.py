@@ -12,6 +12,11 @@ import os
 # 2.- Processed data should be generated using the raw data on the readed file - Done
 # 3.- There should be controls to modify the value of the processing parameters - Done
 
+angle_types = {
+	"motor": 0,
+	"arrow": 1, 
+}
+
 class CustomInputDialog(tk.Toplevel):
     def __init__(self, parent, title, prompt, default_value=""):
         super().__init__(parent)
@@ -52,35 +57,45 @@ class CustomInputDialog(tk.Toplevel):
         self.result = None
         self.destroy()
 
-
-def incoherence_correction(data_angle, prev_data_angle, MAX_REAL_ANGLE_DIFFERENCE = 35):
-	# MAX_REAL_ANGLE_DIFFERENCE = 35	# The maximum possible angles difference between frames 
-	CORRECTION_CONSTANT = MAX_REAL_ANGLE_DIFFERENCE * MAX_REAL_ANGLE_DIFFERENCE # A constant to calculate the correction value used to correct irregular differences 
+# TODO: Normalizar nombre de frame
+def incoherence_correction(data_angle, prev_data_angle, actual_frame, MAX_REAL_ANGLE_DIFFERENCE = 60):
+	# MAX_REAL_ANGLE_DIFFERENCE = 35	# The maximum possible angles difference between frames
 	discrepancy = 0
 
 	angle_difference = abs(data_angle - prev_data_angle)
 	if angle_difference > MAX_REAL_ANGLE_DIFFERENCE: # If the increment in a single frame is realistically impossible...
-		correction = data_angle - ( prev_data_angle + (CORRECTION_CONSTANT / angle_difference) ) # Generate the correction value based on the previous data
-		data_angle = data_angle - correction # Fix the value with the generated correction
+		# print("INCOHERENCE")
+		# print(f'frame: {actual_frame}')
+		# print(f'Angulo actual: {data_angle}')
+		# print(f'Angulo anterior: {prev_data_angle}')
+		data_angle = prev_data_angle # Ignore the discrepancy and assume steadyness
 		discrepancy += 1
+
 
 	return data_angle, discrepancy
 
 
-def nonlinear_correction(data_angle, prev_data_angle, frame_index, frames_data_filtered, ASSUMED_MIN_FRAME_MOVEMENT = 5):	# The minimum angle movement between frames 
+def nonlinear_correction(data_angle, prev_data_angle, frame_index, frames_data_filtered, angle_type="motor", ASSUMED_MIN_FRAME_MOVEMENT = 1):	# The minimum angle movement between frames 
 	discrepancy = 0
 
 	data_angle = float(data_angle)
 	prev_data_angle = float(prev_data_angle)
 	if data_angle < prev_data_angle: # If theres non-linear data...
+		# print("NON-LINEAR")
+		# print(f'frame: {frame_index}')
+		# print(f'Angulo actual: {data_angle}')
+		# print(f'Angulo anterior: {prev_data_angle}')
 		# Make it make sense:
 		is_normal_detection_issue = False # If its not a special case, do the normal fix
 
 		if frame_index > 4 and (data_angle < 300): # If theres enough data to make an assumption and the angle is between 0 and 299...
-			data_average = (frames_data_filtered[frame_index-1][0] + frames_data_filtered[frame_index-2][0] + frames_data_filtered[frame_index-3][0]) / 3 # Get the average angle of the last 3 frames 
+			# Bug fix: Use the corresponding data (motor/arrow angles) to determine past average
+			data_average = (frames_data_filtered[frame_index-1][angle_types[angle_type]] + frames_data_filtered[frame_index-2][angle_types[angle_type]] + frames_data_filtered[frame_index-3][angle_types[angle_type]]) / 3 # Get the average angle of the last 3 frames 
 			if data_average > 300: # If we are close to the full lap...
 				# Assume that we are passing the 360 degrees limit
 				data_angle = 360 + data_angle
+				# print("result: More than 360 degrees correction")
+				# print(f"Previous angles: {[frames_data_filtered[frame_index-1][0], frames_data_filtered[frame_index-2][0], frames_data_filtered[frame_index-3][0]]}")
 			else:
 				# Assume that a detection issue happended
 				is_normal_detection_issue = True
@@ -89,8 +104,18 @@ def nonlinear_correction(data_angle, prev_data_angle, frame_index, frames_data_f
 			is_normal_detection_issue = True
 
 		if is_normal_detection_issue:
-			while (data_angle < prev_data_angle):
-				data_angle = data_angle + ASSUMED_MIN_FRAME_MOVEMENT
+			if ASSUMED_MIN_FRAME_MOVEMENT == 0 or prev_data_angle < 10: # If the assumed min frame movement is 0 or we are on the starting area (0 ~ 360)...
+				data_angle = prev_data_angle # Stay at the previous angle
+				# print("result: Back to prev angle correction")
+			else:
+				# print("Result: simulating movement...")
+				while (data_angle < prev_data_angle):
+					data_angle = data_angle + ASSUMED_MIN_FRAME_MOVEMENT # Generate simulated movement
+					# print(data_angle)
+				# print("End movement simulation")
+
+
+
 
 			discrepancy += 1
 	
@@ -126,12 +151,12 @@ def data_postprocess(frames_data_list, config):
 			prev_data_angle2 = prev_data[1]
 
 			# NON-LINEAR DATA CORRECTION
-			data_angle1, discrepancy1 = nonlinear_correction(data_angle1, prev_data_angle1, i, frames_data_filtered, config["assumed_min_frame_movement"])
-			data_angle2, discrepancy2 = nonlinear_correction(data_angle2, prev_data_angle2, i, frames_data_filtered, config["assumed_min_frame_movement"])
+			data_angle1, discrepancy1 = nonlinear_correction(data_angle1, prev_data_angle1, i, frames_data_filtered, "motor", config["assumed_min_frame_movement"])
+			data_angle2, discrepancy2 = nonlinear_correction(data_angle2, prev_data_angle2, i, frames_data_filtered, "arrow", config["assumed_min_frame_movement"])
 
 			# INCOHERENT INCREMENT CORRECTION
-			data_angle1, discrepancy3 = incoherence_correction(data_angle1, prev_data_angle1, config["max_real_angle_difference"])
-			data_angle2, discrepancy4 = incoherence_correction(data_angle2, prev_data_angle2, config["max_real_angle_difference"])
+			data_angle1, discrepancy3 = incoherence_correction(data_angle1, prev_data_angle1, i, config["max_real_angle_difference"])
+			data_angle2, discrepancy4 = incoherence_correction(data_angle2, prev_data_angle2, i, config["max_real_angle_difference"])
 			
 			discrepancies_counter += (discrepancy1 + discrepancy2 + discrepancy3 + discrepancy4)
 
@@ -144,7 +169,8 @@ def data_postprocess(frames_data_list, config):
 		frames_data_filtered.append([round(data_angle1, 3), round(data_angle2,3) , data[2], filtered_angles_diference, TIMESTAMP])
 
 	print(f"Discrepancies: {discrepancies_counter}\n")
-	
+
+	# print('######################################### FIN DE ARCHIVO #########################################\n\n')
 	return frames_data_filtered
 
 
@@ -271,7 +297,7 @@ def update_graphs():
 
 	# Save the current data for further use
 	current_raw_data = raw_data
-	current_processed_data = processed_data
+	current_processed_data = calculated_processed_data # Bug fix: Use new generated processed data on saved file 
 
 
 # Function to prompt the user for a string
@@ -373,8 +399,11 @@ tags = [
 	{"name": "Diferencia minima", "default": 35}, # Valid threshold
 	{"name": "Diferencia maxima", "default": 70}, # max angle difference
 	{"name": "Tiempo maximo de desinc.", "default": 5}, # max desync time
-	{"name": "Movimiento minimo", "default": 5}, # ASSUMED_MIN_FRAME_MOVEMENT
-	{"name": "Maxima diferencia real", "default": 35}, # MAX_REAL_ANGLE_DIFFERENCE
+	# Default data improvemetn: Let min movement be 1 instead of 35
+	{"name": "Movimiento minimo", "default": 1}, # ASSUMED_MIN_FRAME_MOVEMENT
+	# Default data improvement: Let max real diff be 60 instead of 35
+	# TODO: Rename to: Maximo movimiento real
+	{"name": "Maxima diferencia real", "default": 60}, # MAX_REAL_ANGLE_DIFFERENCE
 ]
 
 for i in range(5):
@@ -388,7 +417,7 @@ for i in range(5):
 	text_fields.append(entry)
 
 
-# Create a StringVar for the label text
+# Create a StringVar for the label text000000005 - 01-Nov-24 - 06-21-56PM - FAIL.csv
 status_text = tk.StringVar()
 status_text.set("Ready")  # Set an initial value
 
