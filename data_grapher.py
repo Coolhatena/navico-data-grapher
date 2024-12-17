@@ -57,8 +57,8 @@ class CustomInputDialog(tk.Toplevel):
         self.result = None
         self.destroy()
 
-# TODO: Normalizar nombre de frame
-def incoherence_correction(data_angle, prev_data_angle, actual_frame, MAX_REAL_ANGLE_DIFFERENCE = 60):
+
+def incoherence_correction(data_angle, prev_data_angle, frame_index = 0, MAX_REAL_ANGLE_DIFFERENCE = 60): # Frame index is only for debugging
 	# MAX_REAL_ANGLE_DIFFERENCE = 35	# The maximum possible angles difference between frames
 	discrepancy = 0
 
@@ -402,8 +402,8 @@ tags = [
 	# Default data improvemetn: Let min movement be 1 instead of 35
 	{"name": "Movimiento minimo", "default": 1}, # ASSUMED_MIN_FRAME_MOVEMENT
 	# Default data improvement: Let max real diff be 60 instead of 35
-	# TODO: Rename to: Maximo movimiento real
-	{"name": "Maxima diferencia real", "default": 60}, # MAX_REAL_ANGLE_DIFFERENCE
+	# Default data improvement: Let max real diff be 80 instead of 60
+	{"name": "Maximo movimiento real", "default": 80}, # MAX_REAL_ANGLE_DIFFERENCE
 ]
 
 for i in range(5):
