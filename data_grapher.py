@@ -357,6 +357,7 @@ current_processed_data = []
 
 test_data_path = './Datos'
 test_data_files_list = [file for file in os.listdir(test_data_path) if os.path.isfile(os.path.join(test_data_path, file))]
+test_data_files_list.sort()
 
 root = tk.Tk()
 root.title('Visualizador de datos procesados')
