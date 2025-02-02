@@ -404,7 +404,8 @@ tags = [
 	{"name": "Movimiento minimo", "default": 1}, # ASSUMED_MIN_FRAME_MOVEMENT
 	# Default data improvement: Let max real diff be 60 instead of 35
 	# Default data improvement: Let max real diff be 80 instead of 60
-	{"name": "Maximo movimiento real", "default": 80}, # MAX_REAL_ANGLE_DIFFERENCE
+	# Default data improvement: Let max real diff be 100 instead of 80
+	{"name": "Maximo movimiento real", "default": 100}, # MAX_REAL_ANGLE_DIFFERENCE
 ]
 
 for i in range(5):
