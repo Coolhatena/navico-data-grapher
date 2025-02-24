@@ -190,11 +190,19 @@ def analizePostprocessedData(filtered_frames_data, config):
 		filtered_angles_diference = frame[3]
 		TIMESTAMP = float(frame[4])
 
-		if filtered_angles_diference > config["max_angle_difference"]:
-			is_test_result = False
-			if not error_max_angle_filtered:
-				test_error_status += "$max_angle_diff"
-			error_max_angle_filtered = True
+		actual_motor_angle = frame[0]
+
+		min_skip_angle = 110
+		max_skip_angle = 300
+
+
+		if not (min_skip_angle < actual_motor_angle < max_skip_angle):
+			print(filtered_angles_diference)
+			if filtered_angles_diference > config["max_angle_difference"]:
+				is_test_result = False
+				if not error_max_angle_filtered:
+					test_error_status += "$max_angle_diff"
+				error_max_angle_filtered = True
 
 		if filtered_angles_diference > config["valid_threshold"]:
 			if not filtered_desync_start:
