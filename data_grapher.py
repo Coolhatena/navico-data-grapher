@@ -192,9 +192,8 @@ def analizePostprocessedData(filtered_frames_data, config):
 
 		actual_motor_angle = frame[0]
 
-		min_skip_angle = 110
-		max_skip_angle = 300
-
+		min_skip_angle = 140
+		max_skip_angle = 320
 
 		if not (min_skip_angle < actual_motor_angle < max_skip_angle):
 			print(filtered_angles_diference)
