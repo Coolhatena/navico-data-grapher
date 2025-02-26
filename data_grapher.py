@@ -406,7 +406,8 @@ text_field_labels = []
 text_fields = []
 tags = [
 	{"name": "Diferencia minima", "default": 35}, # Valid threshold
-	{"name": "Diferencia maxima", "default": 70}, # max angle difference
+	# Default data improvement: Let max angle difference be 60 instead of 70 to match client usage
+	{"name": "Diferencia maxima", "default": 60}, # max angle difference
 	{"name": "Tiempo maximo de desinc.", "default": 5}, # max desync time
 	# Default data improvemetn: Let min movement be 1 instead of 35
 	{"name": "Movimiento minimo", "default": 1}, # ASSUMED_MIN_FRAME_MOVEMENT
